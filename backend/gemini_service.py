@@ -109,7 +109,7 @@ JSON response:""",
         }
 
 
-def generate_questions(summary: str, concept: str = None) -> list[dict]:
+def generate_questions(summary: str, concept) -> list[dict]:
     """
     Generate 10 quiz questions with intelligent distribution.
     Analyzes content to determine optimal MC vs open-ended split.

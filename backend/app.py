@@ -6,11 +6,12 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 from gemini_service import (
-    summarize_pdf, 
-    generate_questions, 
+    summarize_pdf,
+    generate_questions,
     extract_concept_from_summary,
     generate_variation_question
 )
+from ml_service import check_similarity, check_correctness
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -234,40 +235,74 @@ def submit_answer():
 @app.route("/api/answers/<int:answer_id>/detect", methods=["POST"])
 def run_detection(answer_id):
     """
-    Run memorization detection (mock for now).
-    Returns score that determines if student needs more practice.
+    Run memorization detection using ML models.
+    Uses similarity (all-MiniLM-L6-v2) and correctness (nli-deberta-v3-base).
     """
     data = request.get_json()
-    
-    # Mock detection - replace with real ML model later
-    import random
-    mock_score = random.random()
-    
-    # Score interpretation:
-    # 0.0 - 0.4: Good understanding (continue to next question)
-    # 0.4 - 0.7: Moderate concern (maybe continue)
-    # 0.7 - 1.0: High memorization (generate variation, retry question)
-    
-    needs_practice = mock_score > 0.7
-    
-    return jsonify({
-        "id": int(time.time() * 1000),
-        "answer_id": answer_id,
-        "overfitting_detected": mock_score > 0.6,
-        "confidence_score": mock_score,
-        "detection_type": "memorization" if mock_score > 0.7 else "surface" if mock_score > 0.4 else "genuine",
-        "needs_more_practice": needs_practice,
-        "evidence": {
-            "similarity_score": mock_score,
-            "response_time": data.get("response_time_seconds", 45),
-            "reason": (
-                "High similarity to reference material - needs more practice" if mock_score > 0.7
-                else "Moderate understanding - review recommended" if mock_score > 0.4
-                else "Good understanding demonstrated"
-            )
-        },
-        "detected_at": time.strftime('%Y-%m-%dT%H:%M:%SZ')
-    })
+
+    if not data:
+        return jsonify({"error": "No JSON data provided"}), 400
+
+    answer_text = data.get("answer_text", "")
+    sample_answer = data.get("sample_answer", "")
+    concept = data.get("concept", "")
+
+    # Get stored summary for similarity comparison
+    summary = ""
+    if concept and concept in question_storage:
+        summary = question_storage[concept].get("summary", "")
+
+    if not answer_text:
+        return jsonify({"error": "answer_text is required"}), 400
+
+    try:
+        # Run similarity check (student answer vs source material)
+        similarity = check_similarity(answer_text, summary) if summary else {"score": 0.0, "is_memorized": False}
+
+        # Run correctness check (student answer vs sample answer)
+        correctness = check_correctness(answer_text, sample_answer) if sample_answer else {"label": "neutral", "scores": {}}
+
+        similarity_score = similarity["score"]
+        correctness_label = correctness["label"]
+
+        # Score interpretation:
+        # High similarity + correct = memorization (overfitting)
+        # Low similarity + correct = genuine understanding
+        # Low similarity + incorrect = needs more practice
+        if similarity["is_memorized"]:
+            detection_type = "memorization"
+            needs_practice = True
+        elif correctness_label == "contradiction":
+            detection_type = "surface"
+            needs_practice = True
+        else:
+            detection_type = "genuine"
+            needs_practice = False
+
+        return jsonify({
+            "id": int(time.time() * 1000),
+            "answer_id": answer_id,
+            "overfitting_detected": similarity["is_memorized"],
+            "confidence_score": similarity_score,
+            "detection_type": detection_type,
+            "needs_more_practice": needs_practice,
+            "similarity": similarity,
+            "correctness": correctness,
+            "evidence": {
+                "similarity_score": similarity_score,
+                "response_time": data.get("response_time_seconds", 45),
+                "reason": (
+                    "High similarity to reference material - likely memorized" if similarity["is_memorized"]
+                    else "Answer contradicts expected response" if correctness_label == "contradiction"
+                    else "Good understanding demonstrated"
+                )
+            },
+            "detected_at": time.strftime('%Y-%m-%dT%H:%M:%SZ')
+        })
+
+    except Exception as e:
+        print(f"Error in detection: {e}")
+        return jsonify({"error": f"Error running detection: {str(e)}"}), 500
 
 
 if __name__ == "__main__":
