@@ -4,23 +4,40 @@ from google.genai import types
 from dotenv import load_dotenv
 import os
 
-load_dotenv() 
+load_dotenv()
 
-# for testing
-# print("FLASK_APP:", os.getenv("FLASK_APP"))
-# print("GENAI_API_KEY:", os.getenv("GEMINI_API_KEY") is not None)
-
-# load from key from .env file 
+# load from key from .env file
 gemini_api_key = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=gemini_api_key)
-MODEL = "gemini-2.0-flash-exp"
+
+if not gemini_api_key:
+    print("ERROR: GEMINI_API_KEY not found in environment variables!")
+    print("Please ensure .env file exists in backend/ directory with GEMINI_API_KEY set")
+    raise ValueError("GEMINI_API_KEY not found")
+
+print(f"Gemini API Key loaded)")
+
+try:
+    client = genai.Client(api_key=gemini_api_key)
+    print("Gemini client initialized successfully")
+except Exception as e:
+    print(f"Failed to initialize Gemini client: {e}")
+    raise
+
+MODEL = "gemini-2.5-flash"
 
 
 def summarize_pdf(pdf_path: str) -> str:
     """Upload a PDF and return a summary of its key concepts."""
     try:
+        print(f"📖 Reading PDF from: {pdf_path}")
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError(f"PDF file not found: {pdf_path}")
+
         with open(pdf_path, "rb") as f:
             pdf_bytes = f.read()
+
+        print(f"📄 PDF size: {len(pdf_bytes)} bytes")
+        print(f"🤖 Calling Gemini API with model: {MODEL}")
 
         response = client.models.generate_content(
             model=MODEL,
@@ -38,9 +55,16 @@ def summarize_pdf(pdf_path: str) -> str:
                 ),
             ],
         )
+
+        if not response.text:
+            raise ValueError("Gemini API returned empty response")
+
         return str(response.text)
     except Exception as e:
-        print(f"Error summarizing PDF: {e}")
+        import traceback
+        print(f"❌ Error summarizing PDF: {e}")
+        print(f"🔍 Full traceback:")
+        traceback.print_exc()
         raise
 
 

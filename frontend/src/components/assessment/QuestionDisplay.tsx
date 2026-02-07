@@ -79,62 +79,54 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
         transition: 'all 0.3s ease'
       }}
     >
-      {/* Question number badge */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: -16,
-          left: 24,
-          display: 'flex',
-          gap: 1,
-          alignItems: 'center'
-        }}
-      >
-        <Box
-          sx={{
-            bgcolor: isAnswered ? '#51cf66' : '#667eea',
-            color: 'white',
-            px: 2.5,
-            py: 0.5,
-            borderRadius: 2,
-            fontWeight: 700,
-            fontSize: '0.875rem',
-            boxShadow: 2,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1
-          }}
-        >
-          {isAnswered && <CheckCircleIcon sx={{ fontSize: 18 }} />}
-          Question {questionNumber}/{totalQuestions}
-        </Box>
-      </Box>
+      <CardContent sx={{ pt: 3, pb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, gap: 1, flexWrap: 'wrap' }}>
+          {/* Question number badge */}
+          <Box
+            sx={{
+              bgcolor: isAnswered ? '#51cf66' : '#AEE0F9',
+              color: isAnswered ? 'white' : '#1a1a1a',
+              px: 2.5,
+              py: 0.5,
+              borderRadius: 2,
+              fontWeight: 700,
+              fontSize: '0.875rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              height: 32
+            }}
+          >
+            {isAnswered && <CheckCircleIcon sx={{ fontSize: 18 }} />}
+            Question {questionNumber}/{totalQuestions}
+          </Box>
 
-      <CardContent sx={{ pt: 5, pb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3, gap: 1, flexWrap: 'wrap' }}>
-          <Chip
-            label={difficultyStyle.label}
-            sx={{
-              bgcolor: difficultyStyle.bg,
-              color: difficultyStyle.color,
-              fontWeight: 600,
-              fontSize: '0.813rem',
-              height: 32
-            }}
-            size="small"
-          />
-          <Chip
-            label={question.concept}
-            sx={{
-              bgcolor: 'white',
-              border: '2px solid #667eea',
-              color: '#667eea',
-              fontWeight: 600,
-              fontSize: '0.813rem',
-              height: 32
-            }}
-            size="small"
-          />
+          {/* Difficulty and Concept chips */}
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Chip
+              label={difficultyStyle.label}
+              sx={{
+                bgcolor: difficultyStyle.bg,
+                color: difficultyStyle.color,
+                fontWeight: 600,
+                fontSize: '0.813rem',
+                height: 32
+              }}
+              size="small"
+            />
+            <Chip
+              label={question.concept}
+              sx={{
+                bgcolor: 'white',
+                border: '2px solid #AEE0F9',
+                color: '#7DC8E8',
+                fontWeight: 600,
+                fontSize: '0.813rem',
+                height: 32
+              }}
+              size="small"
+            />
+          </Box>
         </Box>
 
         <Paper
@@ -149,7 +141,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: question.type === 'multiple_choice' ? 3 : 0 }}>
             <HelpOutlineIcon
               sx={{
-                color: '#667eea',
+                color: '#AEE0F9',
                 fontSize: 28,
                 mt: 0.5,
                 flexShrink: 0
@@ -193,7 +185,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
                           : isWrong
                             ? '#ff6b6b'
                             : isSelected
-                              ? '#667eea'
+                              ? '#AEE0F9'
                               : '#e9ecef',
                         borderRadius: 2,
                         bgcolor: isCorrect
@@ -201,13 +193,13 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
                           : isWrong
                             ? 'rgba(255, 107, 107, 0.1)'
                             : isSelected
-                              ? 'rgba(102, 126, 234, 0.05)'
+                              ? 'rgba(174, 224, 249, 0.05)'
                               : 'white',
                         transition: 'all 0.2s ease',
                         cursor: showCorrectAnswer ? 'default' : 'pointer',
                         '&:hover': !showCorrectAnswer ? {
-                          borderColor: '#667eea',
-                          bgcolor: 'rgba(102, 126, 234, 0.05)',
+                          borderColor: '#AEE0F9',
+                          bgcolor: 'rgba(174, 224, 249, 0.05)',
                         } : {}
                       }}
                     >
@@ -233,7 +225,7 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
                                   : isWrong
                                     ? '#ff6b6b'
                                     : isSelected
-                                      ? '#667eea'
+                                      ? '#AEE0F9'
                                       : '#e9ecef',
                                 color: isSelected || isCorrect || isWrong ? 'white' : '#6c757d',
                                 display: 'flex',

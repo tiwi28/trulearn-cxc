@@ -21,9 +21,10 @@ CORS(app, resources={
     r"/api/*": {
         "origins": ["http://localhost:5173", "http://localhost:3000"],
         "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type"]
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
     }
-})
+}, supports_credentials=True)
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "uploads")
 ALLOWED_EXTENSIONS = {"pdf"}
@@ -87,33 +88,39 @@ def upload_pdf():
     
     try:
         file.save(filepath)
-        
+
         print(f"\n📄 Processing PDF: {filename}")
-        
+        print(f"📍 File saved to: {filepath}")
+
         # Summarize PDF
+        print("🔄 Calling summarize_pdf...")
         summary = summarize_pdf(filepath)
         print(f"✅ Generated summary ({len(summary)} chars)")
-        
+
         # Extract concept
+        print("🔄 Extracting concept...")
         concept = extract_concept_from_summary(summary)
         print(f"✅ Identified concept: {concept}")
-        
+
         # Store for later use
         pdf_storage[filename] = {
             'summary': summary,
             'concept': concept,
             'uploaded_at': time.time()
         }
-        
+
         return jsonify({
             "text": summary[:1000],
             "concept": concept,
             "filename": filename,
             "full_summary_length": len(summary)
         })
-        
+
     except Exception as e:
+        import traceback
         print(f"❌ Error processing PDF: {e}")
+        print(f"🔍 Full traceback:")
+        traceback.print_exc()
         return jsonify({"error": f"Error processing PDF: {str(e)}"}), 500
         
     finally:
@@ -167,7 +174,7 @@ def generate_quiz_questions():
         return jsonify({
             "questions": questions,
             "generation_time": generation_time,
-            "model_used": "gemini-2.0-flash-exp"
+            "model_used": "gemini-2.5-flash"
         })
         
     except Exception as e:
@@ -309,11 +316,11 @@ if __name__ == "__main__":
     print("\n" + "="*60)
     print("🚀 Starting TruLearn API Server (Flask)")
     print("="*60)
-    print("📍 Running on: http://localhost:5000")
+    print("📍 Running on: http://localhost:5001")
     print("📖 Features:")
     print("   • Smart question distribution (analyzes content)")
     print("   • Question variations for practice")
-    print("   • Memorization detection (mock)")
+    print("   • Memorization detection")
     print("="*60 + "\n")
-    
-    app.run(debug=True, port=5000, host="0.0.0.0")
+
+    app.run(debug=True, port=5001, host="0.0.0.0")

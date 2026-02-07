@@ -171,8 +171,8 @@ const PdfUpload: React.FC<PdfUploadProps> = ({
             sx={{ 
               p: 3,
               borderRadius: 3,
-              background: 'linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%)',
-              border: '2px solid #667eea'
+              background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f4ff 100%)',
+              border: '2px solid #AEE0F9'
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -244,10 +244,10 @@ const PdfUpload: React.FC<PdfUploadProps> = ({
                   sx={{
                     height: 6,
                     borderRadius: 3,
-                    bgcolor: 'rgba(102, 126, 234, 0.1)',
+                    bgcolor: 'rgba(174, 224, 249, 0.1)',
                     '& .MuiLinearProgress-bar': {
                       borderRadius: 3,
-                      background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)'
+                      background: 'linear-gradient(90deg, #AEE0F9 0%, #6BB6D6 100%)'
                     }
                   }}
                 />

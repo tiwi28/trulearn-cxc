@@ -47,7 +47,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
   return (
     <Box sx={{ mt: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        <EditNoteIcon sx={{ color: '#667eea', fontSize: 28 }} />
+        <EditNoteIcon sx={{ color: '#AEE0F9', fontSize: 28 }} />
         <Typography variant="h6" fontWeight={600}>
           Your Answer
         </Typography>
@@ -58,12 +58,12 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
         sx={{
           p: 0,
           border: '2px solid',
-          borderColor: answerText.length > 0 ? '#667eea' : '#e9ecef',
+          borderColor: answerText.length > 0 ? '#AEE0F9' : '#e9ecef',
           borderRadius: 2,
           transition: 'all 0.3s ease',
           '&:focus-within': {
-            borderColor: '#667eea',
-            boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+            borderColor: '#AEE0F9',
+            boxShadow: '0 0 0 3px rgba(174, 224, 249, 0.1)'
           }
         }}
       >
@@ -126,12 +126,12 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
             borderRadius: 2,
             px: 3,
             py: 1.5,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+            background: 'linear-gradient(135deg, #AEE0F9 0%, #6BB6D6 100%)',
+            boxShadow: '0 4px 12px rgba(174, 224, 249, 0.3)',
             fontWeight: 600,
             '&:hover': {
-              background: 'linear-gradient(135deg, #5568d3 0%, #653a8a 100%)',
-              boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)',
+              background: 'linear-gradient(135deg, #7DC8E8 0%, #4A9ABF 100%)',
+              boxShadow: '0 6px 16px rgba(174, 224, 249, 0.4)',
               transform: 'translateY(-1px)'
             },
             '&:disabled': {
@@ -153,18 +153,18 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
             sx={{
               p: 3,
               borderRadius: 2,
-              background: 'linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%)',
-              border: '1px solid #667eea'
+              background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f4ff 100%)',
+              border: '1px solid #AEE0F9'
             }}
           >
             <LinearProgress 
               sx={{
                 height: 6,
                 borderRadius: 3,
-                bgcolor: 'rgba(102, 126, 234, 0.1)',
+                bgcolor: 'rgba(174, 224, 249, 0.1)',
                 '& .MuiLinearProgress-bar': {
                   borderRadius: 3,
-                  background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)'
+                  background: 'linear-gradient(90deg, #AEE0F9 0%, #6BB6D6 100%)'
                 }
               }}
             />
@@ -181,7 +181,7 @@ const AnswerInput: React.FC<AnswerInputProps> = ({
 
       <Box sx={{ mt: 2, textAlign: 'center' }}>
         <Typography variant="caption" color="text.secondary">
-          💡 Tip: Press <Box component="span" sx={{ fontWeight: 600, color: '#667eea' }}>Ctrl+Enter</Box> to submit quickly
+          💡 Tip: Press <Box component="span" sx={{ fontWeight: 600, color: '#AEE0F9' }}>Ctrl+Enter</Box> to submit quickly
         </Typography>
       </Box>
     </Box>

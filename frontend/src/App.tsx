@@ -6,15 +6,15 @@ import AssessmentView from './components/assessment/AssessmentView';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#667eea',
-      light: '#8796f0',
-      dark: '#5568d3',
-      contrastText: '#ffffff',
+      main: '#AEE0F9',
+      light: '#C7EAFC',
+      dark: '#7DC8E8',
+      contrastText: '#1a1a1a',
     },
     secondary: {
-      main: '#764ba2',
-      light: '#9066b8',
-      dark: '#5d3c82',
+      main: '#6BB6D6',
+      light: '#8FC9E0',
+      dark: '#4A9ABF',
       contrastText: '#ffffff',
     },
     success: {

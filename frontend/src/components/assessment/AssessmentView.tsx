@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Container,
   Paper,
@@ -54,6 +54,9 @@ const AssessmentView: React.FC = () => {
 
   // Results after batch submission
   const [allResults, setAllResults] = useState<QuestionResult[]>([]);
+  const [expandedQuestionId, setExpandedQuestionId] = useState<number | null>(null);
+  
+  const accordionRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const answeredCount = Object.keys(answers).length;
 
@@ -93,6 +96,28 @@ const AssessmentView: React.FC = () => {
       }
       return updated;
     });
+  };
+
+  const handleAccordionChange = (questionId: number, isExpanding: boolean) => {
+    if (isExpanding) {
+      setExpandedQuestionId(questionId);
+      // Wait for the accordion to expand, then center the element (including details) in the viewport
+      setTimeout(() => {
+        const el = accordionRefs.current[questionId];
+        if (!el) return;
+
+        // might change these
+        const centerRatio = 0.3; 
+        const headerOffset = 0; 
+
+        const rect = el.getBoundingClientRect();
+        const elementCenterY = rect.top + rect.height / 2 + window.scrollY;
+        const targetScrollTop = Math.max(0, Math.round(elementCenterY - window.innerHeight * centerRatio - headerOffset));
+        window.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+      }, 150);
+    } else {
+      setExpandedQuestionId(null);
+    }
   };
 
   const handleSubmitAll = async () => {
@@ -169,7 +194,7 @@ const AssessmentView: React.FC = () => {
       overallMessage = "Excellent! You demonstrate genuine understanding of the material. Your answers show real comprehension, not just memorization.";
       overallType = 'success';
     } else if (surfaceCount > genuineCount) {
-      overallMessage = "Your answers show surface-level understanding. Try to go deeper \u2014 explain the 'why' behind concepts, not just the 'what'.";
+      overallMessage = "Your answers show surface-level understanding. Try to go deeper — explain the 'why' behind concepts, not just the 'what'.";
       overallType = 'warning';
     } else {
       overallMessage = "Good effort! Most of your answers show understanding, but review the flagged questions to strengthen weak areas.";
@@ -195,7 +220,7 @@ const AssessmentView: React.FC = () => {
   return (
     <Box sx={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'linear-gradient(135deg, #AEE0F9 0%, #6BB6D6 100%)',
       py: 6
     }}>
       <Container maxWidth="md">
@@ -252,8 +277,8 @@ const AssessmentView: React.FC = () => {
                   <StepLabel
                     StepIconProps={{
                       sx: {
-                        '&.Mui-completed': { color: '#667eea' },
-                        '&.Mui-active': { color: '#764ba2' }
+                        '&.Mui-completed': { color: '#AEE0F9' },
+                        '&.Mui-active': { color: '#6BB6D6' }
                       }
                     }}
                   >
@@ -270,7 +295,7 @@ const AssessmentView: React.FC = () => {
               <Fade in timeout={600}>
                 <Box>
                   <Box sx={{ textAlign: 'center', mb: 4 }}>
-                    <AutoStoriesIcon sx={{ fontSize: 64, color: '#667eea', mb: 2 }} />
+                    <AutoStoriesIcon sx={{ fontSize: 64, color: '#AEE0F9', mb: 2 }} />
                     <Typography variant="h5" gutterBottom fontWeight={600}>
                       Upload Your Study Material
                     </Typography>
@@ -286,7 +311,7 @@ const AssessmentView: React.FC = () => {
 
                   {loadingQuestions && (
                     <Box sx={{ textAlign: 'center', mt: 4 }}>
-                      <CircularProgress size={60} sx={{ color: '#667eea', mb: 2 }} />
+                      <CircularProgress size={60} sx={{ color: '#AEE0F9', mb: 2 }} />
                       <Typography variant="body1" fontWeight={600}>
                         Analyzing your material...
                       </Typography>
@@ -315,12 +340,16 @@ const AssessmentView: React.FC = () => {
                   {questions.map((question, index) => {
                     const isAnswered = !!answers[question.id];
                     const typeLabel = question.type === 'multiple_choice' ? 'Multiple Choice' : 'Open Response';
-                    const typeColor = question.type === 'multiple_choice' ? '#667eea' : '#764ba2';
+                    const typeColor = question.type === 'multiple_choice' ? 'rgb(0, 91, 137)' : '#6bb6d6';
 
                     return (
                       <Accordion
                         key={question.id}
+                        ref={(el) => {
+                          if (el) accordionRefs.current[question.id] = el;
+                        }}
                         disableGutters
+                        onChange={(_, isExpanded) => handleAccordionChange(question.id, isExpanded)}
                         sx={{
                           mb: 2,
                           borderRadius: '12px !important',
@@ -347,8 +376,8 @@ const AssessmentView: React.FC = () => {
                           {/* Question number */}
                           <Box
                             sx={{
-                              bgcolor: isAnswered ? '#51cf66' : '#667eea',
-                              color: 'white',
+                              bgcolor: isAnswered ? '#51cf66' : '#AEE0F9',
+                              color: isAnswered ? 'white' : '#1a1a1a',
                               minWidth: 32,
                               height: 32,
                               borderRadius: '50%',
@@ -430,10 +459,10 @@ const AssessmentView: React.FC = () => {
                                       borderWidth: 2
                                     },
                                     '&:hover fieldset': {
-                                      borderColor: '#667eea'
+                                      borderColor: '#AEE0F9'
                                     },
                                     '&.Mui-focused fieldset': {
-                                      borderColor: '#667eea'
+                                      borderColor: '#AEE0F9'
                                     }
                                   }
                                 }}
@@ -463,12 +492,12 @@ const AssessmentView: React.FC = () => {
                           py: 2,
                           fontSize: '1.1rem',
                           fontWeight: 700,
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                          boxShadow: '0 4px 16px rgba(102, 126, 234, 0.4)',
+                          background: 'linear-gradient(135deg, #AEE0F9 0%, #6BB6D6 100%)',
+                          boxShadow: '0 4px 16px rgba(174, 224, 249, 0.4)',
                           '&:hover': {
-                            background: 'linear-gradient(135deg, #5568d3 0%, #653a8a 100%)',
+                            background: 'linear-gradient(135deg, #7DC8E8 0%, #4A9ABF 100%)',
                             transform: 'translateY(-2px)',
-                            boxShadow: '0 6px 20px rgba(102, 126, 234, 0.5)',
+                            boxShadow: '0 6px 20px rgba(174, 224, 249, 0.5)',
                           },
                           '&:disabled': {
                             background: '#e9ecef',
@@ -488,11 +517,11 @@ const AssessmentView: React.FC = () => {
                         sx={{
                           p: 4,
                           borderRadius: 3,
-                          background: 'linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%)',
-                          border: '2px solid #667eea'
+                          background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f4ff 100%)',
+                          border: '2px solid #AEE0F9'
                         }}
                       >
-                        <CircularProgress size={48} sx={{ color: '#667eea', mb: 2 }} />
+                        <CircularProgress size={48} sx={{ color: '#AEE0F9', mb: 2 }} />
                         <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>
                           Analyzing your answers...
                         </Typography>
@@ -502,10 +531,10 @@ const AssessmentView: React.FC = () => {
                           sx={{
                             height: 8,
                             borderRadius: 4,
-                            bgcolor: 'rgba(102, 126, 234, 0.1)',
+                            bgcolor: 'rgba(174, 224, 249, 0.1)',
                             '& .MuiLinearProgress-bar': {
                               borderRadius: 4,
-                              background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)'
+                              background: 'linear-gradient(90deg, #AEE0F9 0%, #6BB6D6 100%)'
                             }
                           }}
                         />
@@ -561,7 +590,7 @@ const AssessmentView: React.FC = () => {
                         {/* Stats Grid */}
                         <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
                           <Paper elevation={0} sx={{ p: 2, borderRadius: 2, textAlign: 'center', minWidth: 140, bgcolor: 'white' }}>
-                            <Typography variant="h4" fontWeight={800} color="#667eea">
+                            <Typography variant="h4" fontWeight={800} color="#AEE0F9">
                               {summary.totalAnswered}/{summary.totalQuestions}
                             </Typography>
                             <Typography variant="body2" color="text.secondary" fontWeight={500}>
@@ -665,7 +694,8 @@ const AssessmentView: React.FC = () => {
                         sx={{
                           borderRadius: 2,
                           px: 4,
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                          background: 'linear-gradient(135deg, #AEE0F9 0%, #6BB6D6 100%)',
+                          color: '#1a1a1a'
                         }}
                       >
                         Start New Assessment

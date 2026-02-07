@@ -36,16 +36,16 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #667eea;
+  background: #AEE0F9;
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #5568d3;
+  background: #7DC8E8;
 }
 
 /* Focus visible for accessibility */
 *:focus-visible {
-  outline: 2px solid #667eea;
+  outline: 2px solid #AEE0F9;
   outline-offset: 2px;
 }
