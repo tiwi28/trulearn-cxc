@@ -1,5 +1,3 @@
-// src/types/assessment.types.ts
-
 export interface Question {
   id: number;
   question_text: string;
