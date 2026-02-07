@@ -13,7 +13,12 @@ import {
   Card,
   CardContent,
   Fade,
-  Grow
+  Grow,
+  CircularProgress,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText
 } from '@mui/material';
 import QuestionDisplay from './QuestionDisplay';
 import AnswerInput from './AnswerInput';
@@ -24,21 +29,15 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import AutoStoriesIcon from '@mui/icons-material/AutoStories';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import EmojiObjectsIcon from '@mui/icons-material/EmojiObjects';
+import { generateQuestions, uploadPdfForQuestions } from '../../api/llmApi';
+import { submitAnswer, runDetection } from '../../api/assessmentApi';
 
 const AssessmentView: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [uploadedPdf, setUploadedPdf] = useState<File | null>(null);
-  
-  // Mock question data for testing
-  const [currentQuestion] = useState<Question>({
-    id: 1,
-    question_text: 'Explain the process of photosynthesis and how plants convert light energy into chemical energy.',
-    concept: 'Photosynthesis',
-    difficulty: 'medium',
-    variation_group_id: 'photo_001',
-    created_at: new Date().toISOString()
-  });
-
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [detectionResult, setDetectionResult] = useState<{
     detected: boolean;
@@ -46,33 +45,85 @@ const AssessmentView: React.FC = () => {
     message: string;
   } | null>(null);
 
-  const handlePdfUpload = (file: File) => {
+  const currentQuestion = questions[currentQuestionIndex];
+
+  const handlePdfUpload = async (file: File) => {
     console.log('PDF uploaded:', file.name);
     setUploadedPdf(file);
-    setActiveStep(1);
+    setLoadingQuestions(true);
+    
+    try {
+      // Step 1: Upload PDF and extract text
+      const { text, concept } = await uploadPdfForQuestions(file);
+      console.log('Extracted concept:', concept);
+      
+      // Step 2: Generate questions using LLM
+      const response = await generateQuestions({
+        concept: concept,
+        difficulty: 'medium',
+        num_variations: 5, // Generate 5 questions
+        reference_text: text
+      });
+      
+      setQuestions(response.questions);
+      setCurrentQuestionIndex(0);
+      setActiveStep(1); // Move to question selection step
+      
+    } catch (error) {
+      console.error('Error processing PDF:', error);
+      alert('Error processing PDF. Using mock questions for demo.');
+    } finally {
+      setLoadingQuestions(false);
+    }
+  };
+
+  const handleQuestionSelect = (index: number) => {
+    setCurrentQuestionIndex(index);
+    setActiveStep(2); // Move to answer step
   };
 
   const handleSubmitAnswer = async (answerText: string, responseTime: number) => {
-    console.log('Submitting answer:', { answerText, responseTime, pdfName: uploadedPdf?.name });
-    
+    console.log('Submitting answer:', { answerText, responseTime });
+  
     setIsSubmitting(true);
     setDetectionResult(null);
 
-    // TODO: Replace with actual API call
-    setTimeout(() => {
-      const mockResult = {
-        detected: Math.random() > 0.5,
-        score: Math.random(),
-        message: 'Analysis complete'
+    try {
+      // Prepare answer data once
+      const answerData = {
+        question_id: currentQuestion.id,
+        student_id: 1,
+        answer_text: answerText,
+        response_time_seconds: responseTime,
+        reference_pdf: uploadedPdf?.name
       };
+
+      // Submit answer
+      const submitResponse = await submitAnswer(answerData);
       
-      setDetectionResult(mockResult);
+      // Run detection with both answerId AND answerData
+      const detection = await runDetection(
+        submitResponse.answer_id,
+        answerData  // ← This is the missing second parameter
+      );
+      
+      setDetectionResult({
+        detected: detection.overfitting_detected,
+        score: detection.confidence_score,
+        message: detection.evidence.reason
+      });
+      
+      setActiveStep(3);
+      
+    } catch (error) {
+      console.error('Error submitting answer:', error);
+      alert('Error analyzing answer. Please try again.');
+    } finally {
       setIsSubmitting(false);
-      setActiveStep(2);
-    }, 2000);
+    }
   };
 
-  const steps = ['Upload Material', 'Answer Question', 'View Results'];
+  const steps = ['Upload Material', 'Select Question', 'Answer Question', 'View Results'];
 
   return (
     <Box sx={{ 
@@ -106,7 +157,7 @@ const AssessmentView: React.FC = () => {
                 letterSpacing: '0.5px'
               }}
             >
-              Understanding Over Memorization
+              Think Smarter, Learn Harder
             </Typography>
           </Box>
         </Fade>
@@ -131,7 +182,7 @@ const AssessmentView: React.FC = () => {
                 }
               }}
             >
-              {steps.map((label, index) => (
+              {steps.map((label) => (
                 <Step key={label}>
                   <StepLabel
                     StepIconProps={{
@@ -160,23 +211,99 @@ const AssessmentView: React.FC = () => {
                   <Box sx={{ textAlign: 'center', mb: 4 }}>
                     <AutoStoriesIcon sx={{ fontSize: 64, color: '#667eea', mb: 2 }} />
                     <Typography variant="h5" gutterBottom fontWeight={600}>
-                      Let's Get Started
+                      Upload Your Study Material
                     </Typography>
                     <Typography variant="body1" color="text.secondary">
-                      Upload your study material to begin the assessment
+                      We'll analyze it and generate personalized questions
                     </Typography>
                   </Box>
                   <PdfUpload 
                     onFileUpload={handlePdfUpload}
                     label="Upload Study Material"
-                    helperText="We'll analyze your understanding based on this reference material"
+                    helperText="Upload your textbook, notes, or study guide (PDF format)"
                   />
+                  
+                  {loadingQuestions && (
+                    <Box sx={{ textAlign: 'center', mt: 4 }}>
+                      <CircularProgress size={60} sx={{ color: '#667eea', mb: 2 }} />
+                      <Typography variant="body1" fontWeight={600}>
+                        Analyzing your material...
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Our AI is generating personalized questions
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
               </Fade>
             )}
 
-            {/* Step 2: Question and Answer */}
+            {/* Step 2: Question Selection */}
             {activeStep === 1 && (
+              <Fade in timeout={600}>
+                <Box>
+                  <Box sx={{ textAlign: 'center', mb: 4 }}>
+                    <PsychologyIcon sx={{ fontSize: 64, color: '#764ba2', mb: 2 }} />
+                    <Typography variant="h5" gutterBottom fontWeight={600}>
+                      Choose a Question
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary">
+                      Select any question to test your understanding
+                    </Typography>
+                  </Box>
+
+                  <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+                    <Typography variant="subtitle2" fontWeight={600}>
+                      {questions.length} questions generated from: {uploadedPdf?.name}
+                    </Typography>
+                  </Alert>
+
+                  <List>
+                    {questions.map((question, index) => (
+                      <ListItem key={question.id} disablePadding sx={{ mb: 1 }}>
+                        <ListItemButton
+                          onClick={() => handleQuestionSelect(index)}
+                          sx={{
+                            borderRadius: 2,
+                            border: '2px solid',
+                            borderColor: '#e9ecef',
+                            '&:hover': {
+                              borderColor: '#667eea',
+                              bgcolor: '#f8f9ff'
+                            }
+                          }}
+                        >
+                          <Box sx={{ 
+                            width: 32, 
+                            height: 32, 
+                            borderRadius: '50%', 
+                            bgcolor: '#667eea', 
+                            color: 'white', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            fontWeight: 700,
+                            mr: 2
+                          }}>
+                            {index + 1}
+                          </Box>
+                          <ListItemText
+                            primary={question.question}
+                            primaryTypographyProps={{
+                              fontWeight: 500,
+                              fontSize: '1rem'
+                            }}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+              </Fade>
+            )}
+
+            {/* Step 3: Answer Question */}
+            {activeStep === 2 && currentQuestion && (
               <Fade in timeout={600}>
                 <Box>
                   <Alert 
@@ -184,37 +311,43 @@ const AssessmentView: React.FC = () => {
                     icon={<AutoStoriesIcon />}
                     sx={{ 
                       mb: 3,
-                      borderRadius: 2,
-                      '& .MuiAlert-message': {
-                        width: '100%'
-                      }
+                      borderRadius: 2
                     }}
                   >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight={600}>
-                          Reference Material
-                        </Typography>
-                        <Typography variant="body2">
-                          {uploadedPdf?.name}
-                        </Typography>
-                      </Box>
-                      <PsychologyIcon sx={{ fontSize: 32, opacity: 0.6 }} />
-                    </Box>
+                    <Typography variant="subtitle2" fontWeight={600}>
+                      Question {currentQuestionIndex + 1} of {questions.length}
+                    </Typography>
+                    <Typography variant="body2">
+                      Reference: {uploadedPdf?.name}
+                    </Typography>
                   </Alert>
 
-                  <QuestionDisplay question={currentQuestion} questionNumber={1} />
+                  <QuestionDisplay 
+                    question={currentQuestion} 
+                    questionNumber={currentQuestionIndex + 1}
+                    totalQuestions={questions.length}
+                  />
 
                   <AnswerInput 
                     onSubmit={handleSubmitAnswer}
                     isSubmitting={isSubmitting}
                   />
+
+                  <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => setActiveStep(1)}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      Choose Different Question
+                    </Button>
+                  </Box>
                 </Box>
               </Fade>
             )}
 
-            {/* Step 3: Results */}
-            {activeStep === 2 && detectionResult && (
+            {/* Step 4: Results */}
+            {activeStep === 3 && detectionResult && (
               <Fade in timeout={600}>
                 <Box>
                   <Card
@@ -248,7 +381,7 @@ const AssessmentView: React.FC = () => {
                             fontWeight={700}
                             color="#c92a2a"
                           >
-                            Potential Memorization Detected
+                            Memorization Detected
                           </Typography>
                           <Typography 
                             variant="body1" 
@@ -259,19 +392,8 @@ const AssessmentView: React.FC = () => {
                           </Typography>
                           <Divider sx={{ my: 2 }} />
                           <Typography variant="body1" color="text.secondary" textAlign="center">
-                            Your answer shows high similarity to the uploaded study material. 
-                            Try explaining the concept in your own words to demonstrate true understanding.
+                            {detectionResult.message}
                           </Typography>
-                          <Box sx={{ mt: 3, p: 2, bgcolor: 'rgba(255,255,255,0.7)', borderRadius: 2 }}>
-                            <Typography variant="body2" fontWeight={600} gutterBottom>
-                              💡 Tips for Better Understanding:
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              • Use analogies and real-world examples<br/>
-                              • Explain concepts to someone else<br/>
-                              • Connect ideas to what you already know
-                            </Typography>
-                          </Box>
                         </>
                       ) : (
                         <>
@@ -290,21 +412,12 @@ const AssessmentView: React.FC = () => {
                             textAlign="center" 
                             sx={{ mb: 2, fontWeight: 500 }}
                           >
-                            Authenticity Score: {((1 - detectionResult.score) * 100).toFixed(1)}%
+                            Authenticity: {((1 - detectionResult.score) * 100).toFixed(1)}%
                           </Typography>
                           <Divider sx={{ my: 2 }} />
                           <Typography variant="body1" color="text.secondary" textAlign="center">
-                            Your answer demonstrates genuine comprehension of the concept.
-                            Low similarity to source material indicates you truly understand rather than memorize.
+                            {detectionResult.message}
                           </Typography>
-                          <Box sx={{ mt: 3, p: 2, bgcolor: 'rgba(255,255,255,0.7)', borderRadius: 2 }}>
-                            <Typography variant="body2" fontWeight={600} gutterBottom>
-                              🎯 Keep up the great work!
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              You're demonstrating deep understanding by expressing ideas in your own words.
-                            </Typography>
-                          </Box>
                         </>
                       )}
                     </CardContent>
@@ -313,33 +426,28 @@ const AssessmentView: React.FC = () => {
                   <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
                     <Button 
                       variant="outlined" 
+                      onClick={() => setActiveStep(1)}
+                      size="large"
+                      sx={{ borderRadius: 2, px: 3 }}
+                    >
+                      Try Another Question
+                    </Button>
+                    <Button 
+                      variant="contained"
                       onClick={() => {
                         setActiveStep(0);
                         setUploadedPdf(null);
+                        setQuestions([]);
                         setDetectionResult(null);
                       }}
                       size="large"
                       sx={{ 
                         borderRadius: 2,
-                        px: 3
+                        px: 3,
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                       }}
                     >
                       Start New Assessment
-                    </Button>
-                    <Button 
-                      variant="contained"
-                      onClick={() => setActiveStep(1)}
-                      size="large"
-                      sx={{ 
-                        borderRadius: 2,
-                        px: 3,
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #5568d3 0%, #653a8a 100%)',
-                        }
-                      }}
-                    >
-                      Try Another Question
                     </Button>
                   </Box>
                 </Box>
@@ -347,13 +455,6 @@ const AssessmentView: React.FC = () => {
             )}
           </Paper>
         </Grow>
-
-        {/* Footer */}
-        <Box sx={{ textAlign: 'center', mt: 4 }}>
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-            Built with ❤️ to promote genuine learning
-          </Typography>
-        </Box>
       </Container>
     </Box>
   );
