@@ -19,7 +19,11 @@ app.secret_key = os.urandom(24)
 # Enable CORS for frontend
 CORS(app, resources={
     r"/api/*": {
-        "origins": ["http://localhost:5173", "http://localhost:3000"],
+        "origins": [
+            "http://localhost:5173",
+            "http://localhost:3000",
+            os.environ.get("FRONTEND_URL", ""),
+        ],
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
