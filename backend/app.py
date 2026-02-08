@@ -18,12 +18,12 @@ app.secret_key = os.urandom(24)
 # Enable CORS for frontend
 CORS(app, resources={
     r"/api/*": {
-        "origins": [
+        "origins": [o for o in [
             "http://localhost:5173",
             "http://localhost:3000",
             "https://trulearn-cxc.vercel.app",
-            os.environ.get("FRONTEND_URL", ""),
-        ],
+            os.environ.get("FRONTEND_URL"),
+        ] if o],
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
