@@ -142,12 +142,16 @@ JSON response:""",
         }
 
 
-def generate_questions(summary: str, concept) -> list[dict]:
+def generate_questions(summary: str, concept, difficulty: str = "medium") -> list[dict]:
     """
     Generate 10 quiz questions with intelligent distribution.
     Analyzes content to determine optimal MC vs open-ended split.
     """
-    
+
+    # Validate difficulty parameter
+    if difficulty not in ["easy", "medium", "hard"]:
+        difficulty = "medium"
+
     if not concept:
         concept = extract_concept_from_summary(summary)
     
@@ -167,8 +171,15 @@ def generate_questions(summary: str, concept) -> list[dict]:
         num_open = 2
         num_mc = 8
     
-    print(f"🎯 Generating {num_mc} multiple choice + {num_open} open-ended questions")
-    
+    print(f"🎯 Generating {num_mc} multiple choice + {num_open} open-ended questions at {difficulty.upper()} difficulty")
+
+    # Define difficulty-specific instructions
+    difficulty_instructions = {
+        "easy": "Generate EASY difficulty questions. Focus on basic recall and fundamental definitions FROM THE PROVIDED MATERIAL. Test recognition and simple understanding. Use straightforward distractors for multiple choice. Open-ended answers should be 1-2 sentences covering basic concepts directly mentioned in the summary.",
+        "medium": "Generate MEDIUM difficulty questions. Test application of concepts and relationships between ideas FOUND IN THE PROVIDED MATERIAL. Require moderate reasoning about the content. Open-ended answers should be 2-3 sentences explaining concepts from the summary.",
+        "hard": "Generate HARD difficulty questions. Require synthesis, analysis, and comparison of concepts ALL WITHIN THE SCOPE OF THE PROVIDED MATERIAL. Ask students to explain mechanisms, compare processes, or analyze relationships described in the content. Use complex scenarios with nuanced distractors, but ensure all information needed to answer is in the summary. Open-ended answers should be 3-4 sentences with detailed explanations using only information from the provided material."
+    }
+
     prompt = f"""Based on this summary about "{concept}", generate exactly 10 quiz questions.
 
 IMPORTANT DISTRIBUTION:
@@ -176,6 +187,11 @@ IMPORTANT DISTRIBUTION:
 - Generate {num_open} open-ended questions (questions {num_mc+1}-10)
 
 Content Analysis: {content_analysis['reasoning']}
+
+DIFFICULTY LEVEL - {difficulty.upper()}:
+{difficulty_instructions[difficulty]}
+
+CRITICAL: All questions must be answerable using ONLY the information provided in the summary below. Do not require external knowledge.
 
 Requirements for Multiple Choice:
 - Exactly 4 options (A, B, C, D)
@@ -198,7 +214,7 @@ Return ONLY valid JSON (no markdown, no code blocks):
     "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}},
     "correct_answer": "B",
     "concept": "{concept}",
-    "difficulty": "medium"
+    "difficulty": "{difficulty}"
   }},
   {{
     "id": {num_mc+1},
@@ -206,7 +222,7 @@ Return ONLY valid JSON (no markdown, no code blocks):
     "question": "Explain how light energy is converted during photosynthesis.",
     "sample_answer": "Light energy is absorbed by chlorophyll...",
     "concept": "{concept}",
-    "difficulty": "medium"
+    "difficulty": "{difficulty}"
   }}
 ]
 
@@ -241,10 +257,10 @@ Summary:
     except json.JSONDecodeError as e:
         print(f"❌ JSON parse error: {e}")
         print(f"Response text: {response.text}")
-        return generate_fallback_questions(concept, num_mc, num_open)
+        return generate_fallback_questions(concept, num_mc, num_open, difficulty)
     except Exception as e:
         print(f"❌ Error generating questions: {e}")
-        return generate_fallback_questions(concept, num_mc, num_open)
+        return generate_fallback_questions(concept, num_mc, num_open, difficulty)
 
 
 def generate_variation_question(
@@ -312,12 +328,12 @@ Return ONLY a JSON object:
         return variation
 
 
-def generate_fallback_questions(concept: str, num_mc: int, num_open: int) -> list[dict]:
+def generate_fallback_questions(concept: str, num_mc: int, num_open: int, difficulty: str = "medium") -> list[dict]:
     """Generate fallback questions if Gemini fails."""
-    
+
     questions = []
     question_id = 1
-    
+
     # Generate MC questions
     mc_templates = [
         f"What is a key characteristic of {concept}?",
@@ -329,7 +345,7 @@ def generate_fallback_questions(concept: str, num_mc: int, num_open: int) -> lis
         f"What role does {concept} play?",
         f"Which process involves {concept}?",
     ]
-    
+
     for i in range(num_mc):
         questions.append({
             "id": question_id,
@@ -343,10 +359,10 @@ def generate_fallback_questions(concept: str, num_mc: int, num_open: int) -> lis
             },
             "correct_answer": ["A", "B", "C", "D"][i % 4],
             "concept": concept,
-            "difficulty": "medium"
+            "difficulty": difficulty
         })
         question_id += 1
-    
+
     # Generate open-ended questions
     open_templates = [
         f"Explain the main concepts of {concept} in your own words.",
@@ -358,7 +374,7 @@ def generate_fallback_questions(concept: str, num_mc: int, num_open: int) -> lis
         f"What are the implications of {concept}?",
         f"How does {concept} relate to other concepts?",
     ]
-    
+
     for i in range(num_open):
         questions.append({
             "id": question_id,
@@ -366,8 +382,8 @@ def generate_fallback_questions(concept: str, num_mc: int, num_open: int) -> lis
             "question": open_templates[i % len(open_templates)],
             "sample_answer": f"A comprehensive explanation of {concept} would include...",
             "concept": concept,
-            "difficulty": "medium"
+            "difficulty": difficulty
         })
         question_id += 1
-    
+
     return questions

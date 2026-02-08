@@ -142,14 +142,20 @@ def generate_quiz_questions():
     concept = data.get("concept")
     reference_text = data.get("reference_text")
     filename = data.get("filename")  # To retrieve stored summary
-    
+    difficulty = data.get("difficulty", "medium")  # Extract difficulty, default to medium
+
+    # Validate difficulty parameter
+    if difficulty not in ["easy", "medium", "hard"]:
+        difficulty = "medium"
+
     if not concept:
         return jsonify({"error": "Concept is required"}), 400
-    
+
     try:
         print(f"\n🤖 Generating questions for concept: {concept}")
+        print(f"🎯 Difficulty level: {difficulty.upper()}")
         start_time = time.time()
-        
+
         # Prefer full stored summary over truncated reference_text
         if filename and filename in pdf_storage:
             summary = pdf_storage[filename]['summary']
@@ -157,9 +163,9 @@ def generate_quiz_questions():
             summary = reference_text
         else:
             summary = f"Generate questions about the concept: {concept}"
-        
-        # Generate questions with smart distribution
-        questions = generate_questions(summary, concept)
+
+        # Generate questions with smart distribution and specified difficulty
+        questions = generate_questions(summary, concept, difficulty)
         
         # Store questions for later variation generation
         question_storage[concept] = {

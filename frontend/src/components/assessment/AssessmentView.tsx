@@ -44,6 +44,7 @@ interface QuestionResult {
 const AssessmentView: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [uploadedPdf, setUploadedPdf] = useState<File | null>(null);
+  const [referenceSummary, setReferenceSummary] = useState<string>('');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,6 +68,7 @@ const AssessmentView: React.FC = () => {
 
     try {
       const { text, concept, filename } = await uploadPdfForQuestions(file);
+      setReferenceSummary(text);  // Store for adaptive practice
 
       const response = await generateQuestions({
         concept: concept,
@@ -166,6 +168,49 @@ const AssessmentView: React.FC = () => {
     }
   };
 
+  const handleAdaptivePractice = async () => {
+    const conceptPerformance = analyzePerformanceByConcept();
+
+    if (conceptPerformance.size === 0) {
+      alert('No concept data available for adaptive practice.');
+      return;
+    }
+
+    setLoadingQuestions(true);
+
+    try {
+      const allAdaptiveQuestions: Question[] = [];
+
+      for (const [concept, data] of conceptPerformance.entries()) {
+        console.log(
+          `Generating ${data.suggestedDifficulty} questions for ${concept} ` +
+          `(${data.correctPercentage}% correct)`
+        );
+
+        const response = await generateQuestions({
+          concept: concept,
+          difficulty: data.suggestedDifficulty,
+          num_variations: 5,
+          filename: uploadedPdf?.name,
+          reference_text: referenceSummary
+        });
+
+        allAdaptiveQuestions.push(...response.questions);
+      }
+
+      setQuestions(allAdaptiveQuestions);
+      setAnswers({});
+      setAllResults([]);
+      setActiveStep(1);
+
+    } catch (error) {
+      console.error('Error generating adaptive questions:', error);
+      alert('Error generating adaptive practice. Please try again.');
+    } finally {
+      setLoadingQuestions(false);
+    }
+  };
+
   // Compute summary stats from results
   const getResultsSummary = () => {
     if (allResults.length === 0) return null;
@@ -212,6 +257,60 @@ const AssessmentView: React.FC = () => {
       overallMessage,
       overallType
     };
+  };
+
+  interface ConceptPerformance {
+    concept: string;
+    totalQuestions: number;
+    correctCount: number;
+    correctPercentage: number;
+    suggestedDifficulty: 'easy' | 'medium' | 'hard';
+  }
+
+  const analyzePerformanceByConcept = (): Map<string, ConceptPerformance> => {
+    const conceptMap = new Map<string, ConceptPerformance>();
+
+    allResults.forEach((result) => {
+      const concept = result.question.concept;
+
+      if (!conceptMap.has(concept)) {
+        conceptMap.set(concept, {
+          concept,
+          totalQuestions: 0,
+          correctCount: 0,
+          correctPercentage: 0,
+          suggestedDifficulty: 'medium'
+        });
+      }
+
+      const conceptData = conceptMap.get(concept)!;
+      conceptData.totalQuestions += 1;
+
+      // Count as correct if: genuine OR (surface AND low confidence)
+      const isCorrect =
+        result.detection.detection_type === 'genuine' ||
+        (result.detection.detection_type === 'surface' &&
+         result.detection.confidence_score < 0.7);
+
+      if (isCorrect) conceptData.correctCount += 1;
+    });
+
+    // Calculate percentages and assign difficulty
+    conceptMap.forEach((data) => {
+      data.correctPercentage = Math.round(
+        (data.correctCount / data.totalQuestions) * 100
+      );
+
+      if (data.correctPercentage >= 80) {
+        data.suggestedDifficulty = 'hard';
+      } else if (data.correctPercentage >= 50) {
+        data.suggestedDifficulty = 'medium';
+      } else {
+        data.suggestedDifficulty = 'easy';
+      }
+    });
+
+    return conceptMap;
   };
 
   const steps = ['Upload Material', 'Answer Questions', 'Results'];
@@ -683,6 +782,25 @@ const AssessmentView: React.FC = () => {
                     <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mt: 4 }}>
                       <Button
                         variant="contained"
+                        onClick={handleAdaptivePractice}
+                        size="large"
+                        startIcon={<EmojiObjectsIcon />}
+                        sx={{
+                          borderRadius: 2,
+                          px: 4,
+                          background: 'linear-gradient(135deg, #ffd43b 0%, #fab005 100%)',
+                          color: '#1a1a1a',
+                          fontWeight: 600,
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, #fab005 0%, #f59f00 100%)',
+                          }
+                        }}
+                      >
+                        Adaptive Practice
+                      </Button>
+
+                      <Button
+                        variant="outlined"
                         onClick={() => {
                           setActiveStep(0);
                           setUploadedPdf(null);
@@ -694,7 +812,7 @@ const AssessmentView: React.FC = () => {
                         sx={{
                           borderRadius: 2,
                           px: 4,
-                          background: 'linear-gradient(135deg, #AEE0F9 0%, #6BB6D6 100%)',
+                          borderColor: '#AEE0F9',
                           color: '#1a1a1a'
                         }}
                       >
