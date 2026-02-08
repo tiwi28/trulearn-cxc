@@ -101,32 +101,18 @@ const QuestionDisplay: React.FC<QuestionDisplayProps> = ({
             Question {questionNumber}/{totalQuestions}
           </Box>
 
-          {/* Difficulty and Concept chips */}
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            <Chip
-              label={difficultyStyle.label}
-              sx={{
-                bgcolor: difficultyStyle.bg,
-                color: difficultyStyle.color,
-                fontWeight: 600,
-                fontSize: '0.813rem',
-                height: 32
-              }}
-              size="small"
-            />
-            <Chip
-              label={question.concept}
-              sx={{
-                bgcolor: 'white',
-                border: '2px solid #AEE0F9',
-                color: '#7DC8E8',
-                fontWeight: 600,
-                fontSize: '0.813rem',
-                height: 32
-              }}
-              size="small"
-            />
-          </Box>
+          {/* Difficulty chip */}
+          <Chip
+            label={difficultyStyle.label}
+            sx={{
+              bgcolor: difficultyStyle.bg,
+              color: difficultyStyle.color,
+              fontWeight: 600,
+              fontSize: '0.813rem',
+              height: 32
+            }}
+            size="small"
+          />
         </Box>
 
         <Paper

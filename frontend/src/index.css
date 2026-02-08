@@ -10,6 +10,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: #f8f9fa;
+  -ms-overflow-style: none;  /* IE and Edge - hide scrollbar */
+  scrollbar-width: none;  /* Firefox - hide scrollbar */
 }
 
 code {
@@ -26,22 +28,9 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
+/* Hide scrollbar but keep scroll functionality - Chrome, Safari, Opera */
 ::-webkit-scrollbar {
-  width: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f3f5;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #AEE0F9;
-  border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #7DC8E8;
+  display: none;
 }
 
 /* Focus visible for accessibility */

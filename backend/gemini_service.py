@@ -4,26 +4,33 @@ from google.genai import types
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
-
-# load from key from .env file
-gemini_api_key = os.getenv("GEMINI_API_KEY")
-
-if not gemini_api_key:
-    print("ERROR: GEMINI_API_KEY not found in environment variables!")
-    print("Please ensure .env file exists in backend/ directory with GEMINI_API_KEY set")
-    raise ValueError("GEMINI_API_KEY not found")
-
-print(f"Gemini API Key loaded)")
-
-try:
-    client = genai.Client(api_key=gemini_api_key)
-    print("Gemini client initialized successfully")
-except Exception as e:
-    print(f"Failed to initialize Gemini client: {e}")
-    raise
-
 MODEL = "gemini-2.5-flash"
+
+# Lazy-initialized client that reloads .env on key changes
+_client = None
+_current_key = None
+
+
+def get_client() -> genai.Client:
+    """Get the Gemini client, reinitializing if the API key has changed."""
+    global _client, _current_key
+
+    load_dotenv(override=True)
+    api_key = os.getenv("GEMINI_API_KEY")
+
+    if not api_key:
+        raise ValueError(
+            "GEMINI_API_KEY not found. "
+            "Please ensure .env file exists in backend/ directory with GEMINI_API_KEY set"
+        )
+
+    if _client is None or api_key != _current_key:
+        print("Initializing Gemini client...")
+        _client = genai.Client(api_key=api_key)
+        _current_key = api_key
+        print("Gemini client initialized successfully")
+
+    return _client
 
 
 def summarize_pdf(pdf_path: str) -> str:
@@ -39,7 +46,7 @@ def summarize_pdf(pdf_path: str) -> str:
         print(f"📄 PDF size: {len(pdf_bytes)} bytes")
         print(f"🤖 Calling Gemini API with model: {MODEL}")
 
-        response = client.models.generate_content(
+        response = get_client().models.generate_content(
             model=MODEL,
             contents=[
                 types.Part.from_bytes(
@@ -71,7 +78,7 @@ def summarize_pdf(pdf_path: str) -> str:
 def extract_concept_from_summary(summary: str) -> str:
     """Extract the main concept/topic from the summary."""
     try:
-        response = client.models.generate_content(
+        response = get_client().models.generate_content(
             model=MODEL,
             contents=f"""Analyze this summary and identify the MAIN concept or topic in 2-5 words.
 
@@ -96,7 +103,7 @@ def analyze_content_type(summary: str) -> dict:
     Returns ratio of multiple choice vs open-ended questions.
     """
     try:
-        response = client.models.generate_content(
+        response = get_client().models.generate_content(
             model=MODEL,
             contents=f"""Analyze this educational content and determine the optimal question format distribution.
 
@@ -230,7 +237,7 @@ Summary:
 {summary}"""
 
     try:
-        response = client.models.generate_content(
+        response = get_client().models.generate_content(
             model=MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
@@ -307,7 +314,7 @@ Return ONLY a JSON object:
 }}"""
 
     try:
-        response = client.models.generate_content(
+        response = get_client().models.generate_content(
             model=MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
