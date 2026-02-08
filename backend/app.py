@@ -21,6 +21,7 @@ CORS(app, resources={
         "origins": [
             "http://localhost:5173",
             "http://localhost:3000",
+            "https://trulearn-cxc.vercel.app",
             os.environ.get("FRONTEND_URL", ""),
         ],
         "methods": ["GET", "POST", "OPTIONS"],
