@@ -33,8 +33,8 @@ def get_client() -> genai.Client:
     return _client
 
 
-def summarize_pdf(pdf_path: str) -> str:
-    """Upload a PDF and return a summary of its key concepts."""
+def summarize_pdf(pdf_path: str) -> dict:
+    """Upload a PDF and return a summary + main concept in a single Gemini call."""
     try:
         print(f"📖 Reading PDF from: {pdf_path}")
         if not os.path.exists(pdf_path):
@@ -54,19 +54,27 @@ def summarize_pdf(pdf_path: str) -> str:
                     mime_type="application/pdf",
                 ),
                 (
-                    "Read this entire document carefully. "
-                    "Provide a detailed summary of the key concepts, main ideas, "
+                    "Read this entire document carefully. Return a JSON object with two fields:\n"
+                    "1. \"summary\": A detailed summary of the key concepts, main ideas, "
                     "important facts, definitions, and any formulas or processes described. "
-                    "Identify the main topic or subject area (e.g., 'Photosynthesis', 'World War II'). "
-                    "Be thorough -- this summary will be used to generate quiz questions."
+                    "Be thorough -- this summary will be used to generate quiz questions.\n"
+                    "2. \"concept\": The main concept or topic of the document in 2-5 words "
+                    "(e.g., \"Photosynthesis\", \"Cell Division\", \"World War II\", \"Calculus Derivatives\")."
                 ),
             ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            ),
         )
 
         if not response.text:
             raise ValueError("Gemini API returned empty response")
 
-        return str(response.text)
+        result = json.loads(str(response.text))
+        if "summary" not in result or "concept" not in result:
+            raise ValueError("Gemini response missing 'summary' or 'concept' field")
+
+        return result
     except Exception as e:
         import traceback
         print(f"❌ Error summarizing PDF: {e}")
@@ -161,24 +169,8 @@ def generate_questions(summary: str, concept, difficulty: str = "medium") -> lis
 
     if not concept:
         concept = extract_concept_from_summary(summary)
-    
-    # Analyze content to determine question distribution
-    content_analysis = analyze_content_type(summary)
-    mc_ratio = content_analysis['multiple_choice_ratio']
-    
-    # Calculate number of each type (out of 10 total)
-    num_mc = round(mc_ratio * 10)
-    num_open = 10 - num_mc
-    
-    # Ensure at least 2 of each type
-    if num_mc < 2:
-        num_mc = 2
-        num_open = 8
-    elif num_open < 2:
-        num_open = 2
-        num_mc = 8
-    
-    print(f"🎯 Generating {num_mc} multiple choice + {num_open} open-ended questions at {difficulty.upper()} difficulty")
+
+    print(f"🎯 Generating questions at {difficulty.upper()} difficulty")
 
     # Define difficulty-specific instructions
     difficulty_instructions = {
@@ -189,11 +181,10 @@ def generate_questions(summary: str, concept, difficulty: str = "medium") -> lis
 
     prompt = f"""Based on this summary about "{concept}", generate exactly 10 quiz questions.
 
-IMPORTANT DISTRIBUTION:
-- Generate {num_mc} multiple choice questions (questions 1-{num_mc})
-- Generate {num_open} open-ended questions (questions {num_mc+1}-10)
-
-Content Analysis: {content_analysis['reasoning']}
+DISTRIBUTION:
+- Generate a mix of multiple choice and open-ended questions (at least 2 of each).
+- Use more multiple choice for factual/discrete content, more open-ended for conceptual/process content.
+- List all multiple choice questions first, then all open-ended questions.
 
 DIFFICULTY LEVEL - {difficulty.upper()}:
 {difficulty_instructions[difficulty]}
@@ -224,7 +215,7 @@ Return ONLY valid JSON (no markdown, no code blocks):
     "difficulty": "{difficulty}"
   }},
   {{
-    "id": {num_mc+1},
+    "id": 6,
     "type": "open_ended",
     "question": "Explain how light energy is converted during photosynthesis.",
     "sample_answer": "Light energy is absorbed by chlorophyll...",
@@ -246,28 +237,20 @@ Summary:
         )
 
         questions = json.loads(str(response.text))
-        
+
         # Validate we got 10 questions
         if len(questions) != 10:
             print(f"⚠️  Warning: Expected 10 questions, got {len(questions)}")
-        
-        # Add metadata about distribution
-        for q in questions:
-            q['distribution_info'] = {
-                'total_mc': num_mc,
-                'total_open': num_open,
-                'content_reasoning': content_analysis['reasoning']
-            }
-        
+
         return questions
-        
+
     except json.JSONDecodeError as e:
         print(f"❌ JSON parse error: {e}")
         print(f"Response text: {response.text}")
-        return generate_fallback_questions(concept, num_mc, num_open, difficulty)
+        return generate_fallback_questions(concept, 5, 5, difficulty)
     except Exception as e:
         print(f"❌ Error generating questions: {e}")
-        return generate_fallback_questions(concept, num_mc, num_open, difficulty)
+        return generate_fallback_questions(concept, 5, 5, difficulty)
 
 
 def generate_variation_question(

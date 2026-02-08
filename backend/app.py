@@ -8,7 +8,6 @@ from werkzeug.utils import secure_filename
 from gemini_service import (
     summarize_pdf,
     generate_questions,
-    extract_concept_from_summary,
     generate_variation_question
 )
 from ml_service import check_similarity, check_correctness
@@ -96,14 +95,12 @@ def upload_pdf():
         print(f"\n📄 Processing PDF: {filename}")
         print(f"📍 File saved to: {filepath}")
 
-        # Summarize PDF
+        # Summarize PDF and extract concept in a single Gemini call
         print("🔄 Calling summarize_pdf...")
-        summary = summarize_pdf(filepath)
+        result = summarize_pdf(filepath)
+        summary = result["summary"]
+        concept = result["concept"]
         print(f"✅ Generated summary ({len(summary)} chars)")
-
-        # Extract concept
-        print("🔄 Extracting concept...")
-        concept = extract_concept_from_summary(summary)
         print(f"✅ Identified concept: {concept}")
 
         # Store for later use
