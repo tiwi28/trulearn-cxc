@@ -1,4 +1,5 @@
 import json
+import asyncio
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
@@ -14,6 +15,12 @@ _current_key = None
 def get_client() -> genai.Client:
     """Get the Gemini client, reinitializing if the API key has changed."""
     global _client, _current_key
+
+    # Ensure event loop exists in current thread (Flask debug mode runs in threads without one)
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
 
     load_dotenv(override=True)
     api_key = os.getenv("GEMINI_API_KEY")
