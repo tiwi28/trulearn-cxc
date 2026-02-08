@@ -38,7 +38,8 @@ import { submitAnswer, runDetection } from '../../api/assessmentApi';
 interface QuestionResult {
   question: Question;
   answer: string;
-  detection: DetectionResult;
+  detection?: DetectionResult; // Optional - only for open-ended questions
+  isCorrect?: boolean; // For multiple choice questions
 }
 
 const AssessmentView: React.FC = () => {
@@ -137,8 +138,26 @@ const AssessmentView: React.FC = () => {
     try {
       for (const question of answeredQuestions) {
         const answerText = answers[question.id];
-        const sampleAnswer = question.type === 'open_ended' ? question.sample_answer : undefined;
 
+<<<<<<< HEAD
+        // Multiple choice: only check if answer is correct
+        if (question.type === 'multiple_choice') {
+          const isCorrect = answerText === question.correct_answer;
+          results.push({ question, answer: answerText, isCorrect });
+        }
+        // Open-ended: run detection
+        else {
+          const sampleAnswer = question.sample_answer;
+          const answerData = {
+            question_id: question.id,
+            student_id: 1,
+            answer_text: answerText,
+            response_time_seconds: 0,
+            reference_pdf: uploadedPdf?.name,
+            sample_answer: sampleAnswer,
+            concept: question.concept,
+          };
+=======
         const answerData = {
           question_id: question.id,
           student_id: 1,
@@ -150,11 +169,13 @@ const AssessmentView: React.FC = () => {
           question_type: question.type,
           concept: question.concept,
         };
+>>>>>>> 624415dadf58f70e6ba14c5cc9eb3be259855ea2
 
-        const submitResponse = await submitAnswer(answerData);
-        const detection = await runDetection(submitResponse.answer_id, answerData);
+          const submitResponse = await submitAnswer(answerData);
+          const detection = await runDetection(submitResponse.answer_id, answerData);
 
-        results.push({ question, answer: answerText, detection });
+          results.push({ question, answer: answerText, detection });
+        }
 
         processed++;
         setSubmitProgress(Math.round((processed / answeredQuestions.length) * 100));
@@ -203,7 +224,13 @@ const AssessmentView: React.FC = () => {
       setQuestions(allAdaptiveQuestions);
       setAnswers({});
       setAllResults([]);
+      setExpandedQuestionId(null); // Close any open accordion
       setActiveStep(1);
+
+      // Scroll to top of page after generating new questions
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 100);
 
     } catch (error) {
       console.error('Error generating adaptive questions:', error);
@@ -220,23 +247,56 @@ const AssessmentView: React.FC = () => {
     const totalAnswered = allResults.length;
     const totalQuestions = questions.length;
 
-    const genuineCount = allResults.filter(r => r.detection.detection_type === 'genuine').length;
-    const memorizedCount = allResults.filter(r => r.detection.overfitting_detected).length;
-    const surfaceCount = allResults.filter(r => r.detection.detection_type === 'surface').length;
+    // Count multiple choice results
+    const mcResults = allResults.filter(r => r.question.type === 'multiple_choice');
+    const mcCorrect = mcResults.filter(r => r.isCorrect).length;
 
-    const avgSimilarity = allResults.reduce((sum, r) =>
-      sum + (r.detection.confidence_score || 0), 0) / totalAnswered;
+    // Only analyze open-ended questions for memorization detection
+    const openEndedResults = allResults.filter(r => r.question.type === 'open_ended' && r.detection);
+    const genuineCount = openEndedResults.filter(r => r.detection!.detection_type === 'genuine').length;
+    const memorizedCount = openEndedResults.filter(r => r.detection!.overfitting_detected).length;
+    const surfaceCount = openEndedResults.filter(r => r.detection!.detection_type === 'surface').length;
 
+<<<<<<< HEAD
+    const avgSimilarity = openEndedResults.length > 0
+      ? openEndedResults.reduce((sum, r) => sum + (r.detection!.confidence_score || 0), 0) / openEndedResults.length
+      : 0;
+
+    // Calculate percentages based on open-ended questions only
+    const understandingPct = openEndedResults.length > 0
+      ? Math.round((genuineCount / openEndedResults.length) * 100)
+      : 0;
+    const memorizationPct = openEndedResults.length > 0
+      ? Math.round((memorizedCount / openEndedResults.length) * 100)
+      : 0;
+    const mcAccuracyPct = mcResults.length > 0
+      ? Math.round((mcCorrect / mcResults.length) * 100)
+      : 0;
+=======
     const understandingPct = Math.round((genuineCount / totalAnswered) * 100);
     const memorizationPct = Math.round(avgSimilarity * 100);
+>>>>>>> 624415dadf58f70e6ba14c5cc9eb3be259855ea2
 
     let overallMessage: string;
     let overallType: 'success' | 'warning' | 'error';
 
-    if (memorizationPct > 50) {
+    // Base assessment on open-ended understanding and MC accuracy
+    if (openEndedResults.length === 0) {
+      // Only multiple choice answered
+      if (mcAccuracyPct >= 80) {
+        overallMessage = `Great job on multiple choice! You got ${mcAccuracyPct}% correct. Try answering open-ended questions to demonstrate deeper understanding.`;
+        overallType = 'success';
+      } else if (mcAccuracyPct >= 60) {
+        overallMessage = `You got ${mcAccuracyPct}% of multiple choice correct. Review the material and try the open-ended questions for better learning.`;
+        overallType = 'warning';
+      } else {
+        overallMessage = `Only ${mcAccuracyPct}% correct on multiple choice. Review the material and try again.`;
+        overallType = 'error';
+      }
+    } else if (memorizationPct > 50) {
       overallMessage = "You're relying too heavily on memorization. Try explaining concepts in your own words instead of repeating what's in the notes.";
       overallType = 'error';
-    } else if (genuineCount === totalAnswered) {
+    } else if (genuineCount === openEndedResults.length && mcAccuracyPct >= 80) {
       overallMessage = "Excellent! You demonstrate genuine understanding of the material. Your answers show real comprehension, not just memorization.";
       overallType = 'success';
     } else if (surfaceCount > genuineCount) {
@@ -250,6 +310,10 @@ const AssessmentView: React.FC = () => {
     return {
       totalAnswered,
       totalQuestions,
+      mcResults: mcResults.length,
+      mcCorrect,
+      mcAccuracyPct,
+      openEndedResults: openEndedResults.length,
       genuineCount,
       memorizedCount,
       surfaceCount,
@@ -288,11 +352,17 @@ const AssessmentView: React.FC = () => {
       const conceptData = conceptMap.get(concept)!;
       conceptData.totalQuestions += 1;
 
-      // Count as correct if: genuine OR (surface AND low confidence)
-      const isCorrect =
-        result.detection.detection_type === 'genuine' ||
-        (result.detection.detection_type === 'surface' &&
-         result.detection.confidence_score < 0.7);
+      // For multiple choice: count as correct if answer matches
+      // For open-ended: count as correct if genuine OR (surface AND low confidence)
+      let isCorrect = false;
+      if (result.question.type === 'multiple_choice') {
+        isCorrect = result.isCorrect || false;
+      } else if (result.detection) {
+        isCorrect =
+          result.detection.detection_type === 'genuine' ||
+          (result.detection.detection_type === 'surface' &&
+           result.detection.confidence_score < 0.7);
+      }
 
       if (isCorrect) conceptData.correctCount += 1;
     });
@@ -321,7 +391,13 @@ const AssessmentView: React.FC = () => {
     <Box sx={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #AEE0F9 0%, #6BB6D6 100%)',
-      py: 6
+      py: 6,
+      // Hide scrollbar but keep scroll functionality
+      '&::-webkit-scrollbar': {
+        display: 'none'
+      },
+      scrollbarWidth: 'none', // Firefox
+      msOverflowStyle: 'none', // IE and Edge
     }}>
       <Container maxWidth="md">
         {/* Header */}
@@ -349,7 +425,7 @@ const AssessmentView: React.FC = () => {
                 letterSpacing: '0.5px'
               }}
             >
-              Think Smarter, Learn Harder
+              Think Harder, Learn Smarter
             </Typography>
           </Box>
         </Fade>
@@ -698,22 +774,36 @@ const AssessmentView: React.FC = () => {
                               Questions Answered
                             </Typography>
                           </Paper>
-                          <Paper elevation={0} sx={{ p: 2, borderRadius: 2, textAlign: 'center', minWidth: 140, bgcolor: 'white' }}>
-                            <Typography variant="h4" fontWeight={800} color="#51cf66">
-                              {summary.understandingPct}%
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                              Understanding
-                            </Typography>
-                          </Paper>
-                          <Paper elevation={0} sx={{ p: 2, borderRadius: 2, textAlign: 'center', minWidth: 140, bgcolor: 'white' }}>
-                            <Typography variant="h4" fontWeight={800} color={summary.memorizedCount > 0 ? '#ff6b6b' : '#51cf66'}>
-                              {summary.memorizationPct}%
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                              Memorization
-                            </Typography>
-                          </Paper>
+                          {summary.mcResults > 0 && (
+                            <Paper elevation={0} sx={{ p: 2, borderRadius: 2, textAlign: 'center', minWidth: 140, bgcolor: 'white' }}>
+                              <Typography variant="h4" fontWeight={800} color={summary.mcAccuracyPct >= 70 ? '#51cf66' : '#ff6b6b'}>
+                                {summary.mcAccuracyPct}%
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                MC Accuracy ({summary.mcCorrect}/{summary.mcResults})
+                              </Typography>
+                            </Paper>
+                          )}
+                          {summary.openEndedResults > 0 && (
+                            <>
+                              <Paper elevation={0} sx={{ p: 2, borderRadius: 2, textAlign: 'center', minWidth: 140, bgcolor: 'white' }}>
+                                <Typography variant="h4" fontWeight={800} color="#51cf66">
+                                  {summary.understandingPct}%
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                  Understanding
+                                </Typography>
+                              </Paper>
+                              <Paper elevation={0} sx={{ p: 2, borderRadius: 2, textAlign: 'center', minWidth: 140, bgcolor: 'white' }}>
+                                <Typography variant="h4" fontWeight={800} color={summary.memorizedCount > 0 ? '#ff6b6b' : '#51cf66'}>
+                                  {summary.memorizationPct}%
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                                  Memorization
+                                </Typography>
+                              </Paper>
+                            </>
+                          )}
                         </Box>
 
                         <Divider sx={{ my: 2 }} />
@@ -729,56 +819,81 @@ const AssessmentView: React.FC = () => {
                       Question Breakdown
                     </Typography>
 
-                    {allResults.map((result, index) => (
-                      <Card
-                        key={result.question.id}
-                        elevation={0}
-                        sx={{
-                          mb: 2,
-                          borderRadius: 2,
-                          border: '1px solid',
-                          borderColor: result.detection.overfitting_detected ? '#ff6b6b'
-                            : result.detection.detection_type === 'genuine' ? '#51cf66' : '#ffd43b'
-                        }}
-                      >
-                        <CardContent sx={{ py: 2, px: 3 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            {result.detection.detection_type === 'genuine' ? (
-                              <CheckCircleOutlineIcon sx={{ color: '#51cf66', fontSize: 28, flexShrink: 0 }} />
-                            ) : (
-                              <WarningAmberIcon sx={{
-                                color: result.detection.overfitting_detected ? '#ff6b6b' : '#ffd43b',
-                                fontSize: 28,
-                                flexShrink: 0
-                              }} />
-                            )}
+                    {allResults.map((result, index) => {
+                      const isMC = result.question.type === 'multiple_choice';
+                      const isCorrect = isMC ? result.isCorrect : result.detection?.detection_type === 'genuine';
+                      const borderColor = isMC
+                        ? (result.isCorrect ? '#51cf66' : '#ff6b6b')
+                        : (result.detection?.overfitting_detected ? '#ff6b6b'
+                            : result.detection?.detection_type === 'genuine' ? '#51cf66' : '#ffd43b');
 
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Typography variant="body2" fontWeight={600} noWrap>
-                                Q{index + 1}: {result.question.question}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {result.detection.evidence.reason}
-                              </Typography>
-                            </Box>
+                      return (
+                        <Card
+                          key={result.question.id}
+                          elevation={0}
+                          sx={{
+                            mb: 2,
+                            borderRadius: 2,
+                            border: '1px solid',
+                            borderColor
+                          }}
+                        >
+                          <CardContent sx={{ py: 2, px: 3 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              {isCorrect ? (
+                                <CheckCircleOutlineIcon sx={{ color: '#51cf66', fontSize: 28, flexShrink: 0 }} />
+                              ) : (
+                                <WarningAmberIcon sx={{
+                                  color: isMC ? '#ff6b6b' : (result.detection?.overfitting_detected ? '#ff6b6b' : '#ffd43b'),
+                                  fontSize: 28,
+                                  flexShrink: 0
+                                }} />
+                              )}
 
-                            <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-                              <Typography variant="caption" fontWeight={600} sx={{
-                                color: result.detection.detection_type === 'genuine' ? '#2b8a3e'
-                                  : result.detection.overfitting_detected ? '#c92a2a' : '#e67700',
-                                textTransform: 'uppercase',
-                                fontSize: '0.7rem'
-                              }}>
-                                {result.detection.detection_type}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                Similarity: {(result.detection.confidence_score * 100).toFixed(0)}%
-                              </Typography>
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography variant="body2" fontWeight={600} noWrap>
+                                  Q{index + 1}: {result.question.question}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {isMC
+                                    ? (result.isCorrect
+                                        ? `Correct! You selected ${result.answer}`
+                                        : `Incorrect. You selected ${result.answer}, correct answer is ${result.question.type === 'multiple_choice' ? result.question.correct_answer : ''}`)
+                                    : result.detection?.evidence.reason || 'No analysis available'
+                                  }
+                                </Typography>
+                              </Box>
+
+                              <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                                {isMC ? (
+                                  <Typography variant="caption" fontWeight={600} sx={{
+                                    color: result.isCorrect ? '#2b8a3e' : '#c92a2a',
+                                    textTransform: 'uppercase',
+                                    fontSize: '0.7rem'
+                                  }}>
+                                    {result.isCorrect ? 'CORRECT' : 'INCORRECT'}
+                                  </Typography>
+                                ) : (
+                                  <>
+                                    <Typography variant="caption" fontWeight={600} sx={{
+                                      color: result.detection?.detection_type === 'genuine' ? '#2b8a3e'
+                                        : result.detection?.overfitting_detected ? '#c92a2a' : '#e67700',
+                                      textTransform: 'uppercase',
+                                      fontSize: '0.7rem'
+                                    }}>
+                                      {result.detection?.detection_type || 'UNKNOWN'}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                      Similarity: {((result.detection?.confidence_score || 0) * 100).toFixed(0)}%
+                                    </Typography>
+                                  </>
+                                )}
+                              </Box>
                             </Box>
-                          </Box>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
 
                     {/* Actions */}
                     <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mt: 4 }}>
@@ -809,6 +924,11 @@ const AssessmentView: React.FC = () => {
                           setQuestions([]);
                           setAnswers({});
                           setAllResults([]);
+                          setExpandedQuestionId(null); // Close any open accordion
+                          // Scroll to top
+                          setTimeout(() => {
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }, 100);
                         }}
                         size="large"
                         sx={{

@@ -1,7 +1,7 @@
 //strictly for testing purposes only
 //mostly added it for UI testing
 
-export const ENABLE_MOCK_MODE = true; // Toggle to enable/disable
+export const ENABLE_MOCK_MODE = false; // Toggle to enable/disable
 
 export const mockConfig = {
   apiDelay: 800, // delay sim
