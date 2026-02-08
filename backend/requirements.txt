@@ -19,7 +19,7 @@ pydantic-settings==2.7.0
 
 # ML Models
 sentence-transformers==2.7.0
-torch==2.4.0
+torch==2.5.0
 
 # Production Server
 gunicorn==21.2.0
